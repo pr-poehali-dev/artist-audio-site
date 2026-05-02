@@ -93,6 +93,8 @@ const Index = () => {
     }
   };
 
+  const togglePlay = () => setIsPlaying(!isPlaying);
+
   const prevTrack = () => {
     const idx = tracks.findIndex((t) => t.id === playerTrack.id);
     const prev = tracks[(idx - 1 + tracks.length) % tracks.length];
