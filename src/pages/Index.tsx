@@ -5,13 +5,21 @@ const ARTIST_IMG = "https://cdn.poehali.dev/projects/9992db9f-301f-43aa-836c-991
 const STUDIO_IMG = "https://cdn.poehali.dev/projects/9992db9f-301f-43aa-836c-991a69170ed5/files/4cffebb8-cd39-44dc-b913-d474c9ce4730.jpg";
 const CONCERT_IMG = "https://cdn.poehali.dev/projects/9992db9f-301f-43aa-836c-991a69170ed5/files/370ad1c8-0234-4711-9b25-7c83bed2c6fb.jpg";
 
+const CDN = "https://cdn.poehali.dev/projects/9992db9f-301f-43aa-836c-991a69170ed5/files";
+
 const tracks = [
-  { id: 1, title: "Тёмная материя", album: "VOID EP", duration: "3:47", genre: "Dark Ambient" },
-  { id: 2, title: "Ночной горизонт", album: "Singularity", duration: "4:12", genre: "Electronic" },
-  { id: 3, title: "Пустота / Свет", album: "VOID EP", duration: "5:03", genre: "Cinematic" },
-  { id: 4, title: "Резонанс 440Hz", album: "Singularity", duration: "3:29", genre: "Dark Ambient" },
-  { id: 5, title: "Последний сигнал", album: "VOID EP", duration: "6:18", genre: "Electronic" },
-  { id: 6, title: "Глубина", album: "Fragments", duration: "4:44", genre: "Experimental" },
+  { id: 1,  title: "Добрая песня",                  src: `${CDN}/добрая песня.mp3` },
+  { id: 2,  title: "Подари мне, Бог",               src: `${CDN}/Подари мне, Бог.mp3` },
+  { id: 3,  title: "Разошлись",                     src: `${CDN}/Разошлись.mp3` },
+  { id: 4,  title: "Давайте собираться у стола",    src: `${CDN}/Давайте собираться у стола.mp3` },
+  { id: 5,  title: "Вокзал",                        src: `${CDN}/Вокзал.mp3` },
+  { id: 6,  title: "Самолет",                       src: `${CDN}/Самолет.mp3` },
+  { id: 7,  title: "Счастья не получается",         src: `${CDN}/Счастья не получается.mp3` },
+  { id: 8,  title: "Я люблю Тебя. Отчаянно",        src: `${CDN}/Я люблю Тебя. Отчаянно.mp3` },
+  { id: 9,  title: "Фронтовые письма",              src: `${CDN}/Фронтовые письма.mp3` },
+  { id: 10, title: "Он защищал Сталинград",         src: `${CDN}/Он защищал Сталинград.mp3` },
+  { id: 11, title: "Гармонь солдатская",            src: `${CDN}/Гармонь солдатская.mp3` },
+  { id: 12, title: "Вальс победителей",             src: `${CDN}/Вальс победителей.mp3` },
 ];
 
 const albums = [
@@ -60,28 +68,70 @@ const Index = () => {
   const [playerTrack, setPlayerTrack] = useState(tracks[0]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(80);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (isPlaying) {
-      progressInterval.current = setInterval(() => {
-        setProgress((p) => {
-          if (p >= 100) {
-            setIsPlaying(false);
-            return 0;
-          }
-          return p + 0.3;
-        });
-      }, 100);
-    } else {
-      if (progressInterval.current) clearInterval(progressInterval.current);
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.ontimeupdate = () => {
+        const a = audioRef.current!;
+        setCurrentTime(a.currentTime);
+        setProgress(a.duration ? (a.currentTime / a.duration) * 100 : 0);
+      };
+      audioRef.current.onloadedmetadata = () => {
+        setDuration(audioRef.current!.duration);
+      };
+      audioRef.current.onended = () => {
+        nextTrackAuto();
+      };
     }
     return () => {
-      if (progressInterval.current) clearInterval(progressInterval.current);
+      audioRef.current?.pause();
     };
+  }, []);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 100;
+    }
+  }, [volume]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.src = playerTrack.src;
+    audio.load();
+    if (isPlaying) audio.play();
+  }, [playerTrack]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.play();
+    } else {
+      audio.pause();
+    }
   }, [isPlaying]);
+
+  const nextTrackAuto = () => {
+    const idx = tracks.findIndex((t) => t.id === playerTrack.id);
+    const next = tracks[(idx + 1) % tracks.length];
+    setPlayerTrack(next);
+    setProgress(0);
+    setCurrentTime(0);
+  };
+
+  const formatTime = (s: number) => {
+    if (!s || isNaN(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
 
   const playTrack = (track: typeof tracks[0]) => {
     if (playerTrack.id === track.id) {
@@ -89,6 +139,7 @@ const Index = () => {
     } else {
       setPlayerTrack(track);
       setProgress(0);
+      setCurrentTime(0);
       setIsPlaying(true);
     }
   };
@@ -100,6 +151,7 @@ const Index = () => {
     const prev = tracks[(idx - 1 + tracks.length) % tracks.length];
     setPlayerTrack(prev);
     setProgress(0);
+    setCurrentTime(0);
     setIsPlaying(true);
   };
 
@@ -108,6 +160,7 @@ const Index = () => {
     const next = tracks[(idx + 1) % tracks.length];
     setPlayerTrack(next);
     setProgress(0);
+    setCurrentTime(0);
     setIsPlaying(true);
   };
 
@@ -274,12 +327,7 @@ const Index = () => {
                       <p className={`font-display text-sm font-semibold truncate ${playerTrack.id === track.id ? "text-neon-purple" : "text-white"}`}>
                         {track.title}
                       </p>
-                      <p className="font-mono text-xs text-white/40 mt-0.5">{track.album}</p>
                     </div>
-                    <span className="hidden sm:block font-mono text-xs px-2 py-1 border border-border/50 text-white/30 rounded">
-                      {track.genre}
-                    </span>
-                    <span className="font-mono text-xs text-white/30 flex-shrink-0">{track.duration}</span>
                   </div>
                 ))}
               </div>
@@ -383,12 +431,7 @@ const Index = () => {
                       <p className={`font-display text-sm font-semibold truncate ${playerTrack.id === track.id ? "text-neon-purple" : "text-white"}`}>
                         {track.title}
                       </p>
-                      <p className="font-mono text-xs text-white/40 mt-0.5">{track.album}</p>
                     </div>
-                    <span className="hidden sm:block font-mono text-xs px-2 py-1 border border-border/50 text-white/30 rounded">
-                      {track.genre}
-                    </span>
-                    <span className="font-mono text-xs text-white/30 flex-shrink-0">{track.duration}</span>
                   </div>
                 ))}
               </div>
@@ -472,15 +515,17 @@ const Index = () => {
       {/* Fixed Player */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-xl">
         <div
-          className="h-0.5 bg-border/30 cursor-pointer group"
+          className="h-1 bg-border/30 cursor-pointer group"
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
-            const pct = ((e.clientX - rect.left) / rect.width) * 100;
-            setProgress(pct);
+            const pct = (e.clientX - rect.left) / rect.width;
+            if (audioRef.current && audioRef.current.duration) {
+              audioRef.current.currentTime = pct * audioRef.current.duration;
+            }
           }}
         >
           <div
-            className="h-full bg-neon-purple transition-all duration-100 group-hover:bg-neon-cyan relative"
+            className="h-full bg-neon-purple group-hover:bg-neon-cyan transition-colors relative"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -492,7 +537,7 @@ const Index = () => {
             </div>
             <div className="min-w-0">
               <p className="font-display text-sm font-semibold text-white truncate">{playerTrack.title}</p>
-              <p className="font-mono text-xs text-white/40 truncate">{playerTrack.album}</p>
+              <p className="font-mono text-xs text-white/40">{formatTime(currentTime)} / {formatTime(duration)}</p>
             </div>
           </div>
 
